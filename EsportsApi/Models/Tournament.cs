@@ -1,5 +1,5 @@
 // En Models/Tournament.cs
-using System.ComponentModel.DataAnnotations.Schema; // (Añadimos esto)
+using System.ComponentModel.DataAnnotations.Schema; // <-- ESTA LÍNEA ES IMPORTANTE
 
 namespace EsportsApi.Models
 {
@@ -11,7 +11,6 @@ namespace EsportsApi.Models
         public DateTime StartDate { get; set; }
 
         // --- LÍNEAS NUEVAS AÑADIDAS ---
-        // Esto le dice a la BD quién es el "dueño"
         public int OrganizadorId { get; set; } 
         
         [ForeignKey("OrganizadorId")]
