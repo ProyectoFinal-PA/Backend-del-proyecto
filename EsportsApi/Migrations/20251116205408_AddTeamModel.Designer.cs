@@ -4,6 +4,7 @@ using EsportsApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EsportsApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251116205408_AddTeamModel")]
+    partial class AddTeamModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,69 +24,6 @@ namespace EsportsApi.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("EsportsApi.Models.Partida", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("ScheduledTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("TeamA_Id")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("TeamB_Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TournamentId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TeamA_Id");
-
-                    b.HasIndex("TeamB_Id");
-
-                    b.HasIndex("TournamentId");
-
-                    b.ToTable("Partidas");
-                });
-
-            modelBuilder.Entity("EsportsApi.Models.Resultado", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("PartidaId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScoreTeamA")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScoreTeamB")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("WinnerTeamId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PartidaId")
-                        .IsUnique();
-
-                    b.ToTable("Resultados");
-                });
 
             modelBuilder.Entity("EsportsApi.Models.Team", b =>
                 {
@@ -175,42 +115,6 @@ namespace EsportsApi.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("EsportsApi.Models.Partida", b =>
-                {
-                    b.HasOne("EsportsApi.Models.Team", "TeamA")
-                        .WithMany()
-                        .HasForeignKey("TeamA_Id")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("EsportsApi.Models.Team", "TeamB")
-                        .WithMany()
-                        .HasForeignKey("TeamB_Id")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("EsportsApi.Models.Tournament", "Tournament")
-                        .WithMany()
-                        .HasForeignKey("TournamentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TeamA");
-
-                    b.Navigation("TeamB");
-
-                    b.Navigation("Tournament");
-                });
-
-            modelBuilder.Entity("EsportsApi.Models.Resultado", b =>
-                {
-                    b.HasOne("EsportsApi.Models.Partida", "Partida")
-                        .WithOne("Resultado")
-                        .HasForeignKey("EsportsApi.Models.Resultado", "PartidaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Partida");
-                });
-
             modelBuilder.Entity("EsportsApi.Models.Team", b =>
                 {
                     b.HasOne("EsportsApi.Models.User", "Captain")
@@ -249,12 +153,6 @@ namespace EsportsApi.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("EsportsApi.Models.Partida", b =>
-                {
-                    b.Navigation("Resultado")
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("EsportsApi.Models.Team", b =>

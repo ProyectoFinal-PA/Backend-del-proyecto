@@ -16,5 +16,8 @@ namespace EsportsApi.Models
         [ForeignKey("OrganizadorId")]
         public virtual User Organizador { get; set; } 
         // -------------------------------
+        // --- LÍNEA NUEVA AÑADIDA ---
+        public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+        // -------------------------------
     }
 }
