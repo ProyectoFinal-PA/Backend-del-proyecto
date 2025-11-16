@@ -21,7 +21,6 @@ builder.Services.AddCors(options =>
 });
 
 // --- 2. Configuración de Base de Datos ---
-// ¡¡ESTA ES LA LÍNEA QUE FALTABA!!
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
