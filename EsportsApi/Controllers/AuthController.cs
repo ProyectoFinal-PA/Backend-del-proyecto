@@ -32,16 +32,25 @@ namespace EsportsApi.Controllers
                 return BadRequest("El email ya está en uso.");
             }
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
+
+            // --- ¡NUEVA LÓGICA DE ROLES! ---
+            string userRole = "Jugador";
+            if (!string.IsNullOrEmpty(registerDto.Role) && (registerDto.Role == "Admin" || registerDto.Role == "Organizador"))
+            {
+                userRole = registerDto.Role;
+            }
+            // ---------------------------------
+
             var user = new User
             {
                 Email = registerDto.Email,
                 Nickname = registerDto.Nickname,
                 PasswordHash = passwordHash,
-                Role = "Jugador" // Rol por defecto
+                Role = userRole
             };
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Usuario registrado exitosamente" });
+            return Ok(new { message = $"Usuario registrado como {userRole}" });
         }
 
         [HttpPost("login")]
@@ -62,7 +71,7 @@ namespace EsportsApi.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role),
+                new Claim(ClaimTypes.Role, user.Role), // <-- ¡Aquí se pone el rol en el token!
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
             var jwtKey = _configuration["Jwt:Key"];

@@ -56,7 +56,9 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Ingresa 'Bearer' [espacio] y luego tu token.\n.Ejemplo: 'Bearer 12345abcdef'"
+        // --- ARREGLO DE LA BARRA \ ---
+        Description = @"Ingresa 'Bearer' [espacio] y luego tu token.
+Ejemplo: 'Bearer 12345abcdef'"
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
@@ -74,11 +76,15 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // --- Pipeline de Middlewares ---
+// Movimos Swagger fuera del 'if' para que sea público
+app.UseSwagger();
+app.UseSwaggerUI();
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    // El 'if' ahora está vacío
 }
+
 app.UseHttpsRedirection();
 app.UseCors("AllowFlutterApp"); 
 app.UseAuthentication(); 
