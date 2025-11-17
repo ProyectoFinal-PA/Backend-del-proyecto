@@ -33,17 +33,13 @@ namespace EsportsApi.Controllers
             }
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
 
-            // --- ¡¡LÓGICA ARREGLADA!! ---
-            // El rol es "Jugador" SIEMPRE.
             var user = new User
             {
                 Email = registerDto.Email,
                 Nickname = registerDto.Nickname,
                 PasswordHash = passwordHash,
-                Role = "Jugador" 
+                Role = "Jugador" // Siempre como Jugador
             };
-            // ---------------------------------
-
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             return Ok(new { message = $"Usuario registrado como Jugador" });
@@ -52,24 +48,26 @@ namespace EsportsApi.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto loginDto)
         {
-            // ... (Esta parte no cambia) ...
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             {
                 return Unauthorized(new { message = "Credenciales inválidas" });
             }
+            
             var token = CreateJwtToken(user);
-            return Ok(new LoginResponseDto(token));
+            
+            // --- ¡¡CAMBIO AQUÍ!! ---
+            // Ahora devolvemos el token Y el rol del usuario
+            return Ok(new LoginResponseDto(token, user.Role));
         }
         
         private string CreateJwtToken(User user)
         {
-            // ... (Esta parte no cambia) ...
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role),
+                new Claim(ClaimTypes.Role, user.Role), 
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
             var jwtKey = _configuration["Jwt:Key"];

@@ -3,8 +3,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace EsportsApi.DTOs
 {
-    //                                ¡¡YA NO TIENE EL CAMPO "Role"!!
     public record RegisterDto([Required] string Email, [Required] string Password, [Required] string Nickname);
     public record LoginDto([Required] string Email, [Required] string Password);
-    public record LoginResponseDto(string Token);
+    
+    // --- ¡¡CAMBIO AQUÍ!! ---
+    // Ahora devolvemos el Token Y el Rol
+    public record LoginResponseDto(string Token, string Role);
 }

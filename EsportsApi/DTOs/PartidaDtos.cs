@@ -8,7 +8,8 @@ namespace EsportsApi.DTOs
         int TournamentId,
         int TeamA_Id,
         int TeamB_Id,
-        DateTime ScheduledTime
+        DateTime ScheduledTime,
+        string? TwitchChannelName // <-- CAMBIO AQUÍ
     );
 
     // DTO para registrar un resultado
