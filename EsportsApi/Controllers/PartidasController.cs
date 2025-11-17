@@ -1,4 +1,3 @@
-// En Controllers/PartidasController.cs
 using EsportsApi.Data;
 using EsportsApi.DTOs;
 using EsportsApi.Models;
@@ -6,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json; // ¡¡Importante!!
+using System.Text.Json;
 
 namespace EsportsApi.Controllers
 {
@@ -15,17 +14,16 @@ namespace EsportsApi.Controllers
     public class PartidasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        // El HttpClient se usa para llamar a APIs externas (Twitch)
+        //se usa para llamar a APIs externas
         private readonly HttpClient _httpClient;
 
         public PartidasController(ApplicationDbContext context)
         {
             _context = context;
-            _httpClient = new HttpClient(); // Creamos una instancia
+            _httpClient = new HttpClient(); 
         }
 
-        // --- 1. POST (Crear una Partida) ---
-        // (Modificado para incluir el canal de Twitch)
+        
         [HttpPost]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> CreatePartida([FromBody] CreatePartidaDto dto)
@@ -33,15 +31,14 @@ namespace EsportsApi.Controllers
             var tournament = await _context.Tournaments.FindAsync(dto.TournamentId);
             if (tournament == null) return NotFound("Torneo no encontrado");
 
-            // --- Lógica de Permisos (Igual que antes) ---
+            
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var userRole = User.FindFirstValue(ClaimTypes.Role);
             if (tournament.OrganizadorId != userId && userRole != "Admin")
             {
                 return Forbid("No eres el organizador de este torneo.");
             }
-            // ------------------------
-
+            
             var partida = new Partida
             {
                 TournamentId = dto.TournamentId,
@@ -49,7 +46,7 @@ namespace EsportsApi.Controllers
                 TeamB_Id = dto.TeamB_Id,
                 ScheduledTime = dto.ScheduledTime,
                 Status = "Pendiente",
-                TwitchChannelName = dto.TwitchChannelName // <-- CAMBIO AQUÍ
+                TwitchChannelName = dto.TwitchChannelName 
             };
 
             _context.Partidas.Add(partida);
@@ -58,8 +55,7 @@ namespace EsportsApi.Controllers
             return Ok(new { message = "Partida creada", partidaId = partida.Id });
         }
 
-        // --- 2. GET (Ver partidas de un torneo) ---
-        // (Modificado para incluir el canal de Twitch)
+       
         [HttpGet("torneo/{tournamentId}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetPartidasForTournament(int tournamentId)
@@ -76,7 +72,7 @@ namespace EsportsApi.Controllers
                     p.Status,
                     TeamA = p.TeamA.Name,
                     TeamB = p.TeamB.Name,
-                    TwitchChannel = p.TwitchChannelName, // <-- CAMBIO AQUÍ
+                    TwitchChannel = p.TwitchChannelName, 
                     Resultado = p.Resultado == null ? null : new 
                     {
                         p.Resultado.ScoreTeamA,
@@ -89,8 +85,7 @@ namespace EsportsApi.Controllers
             return Ok(partidas);
         }
 
-        // --- 3. POST (Registrar un Resultado) ---
-        // (Sin cambios, es idéntico al anterior)
+        
         [HttpPost("{partidaId}/resultado")]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> RegisterResultado(int partidaId, [FromBody] RegisterResultadoDto dto)
@@ -125,8 +120,7 @@ namespace EsportsApi.Controllers
             return Ok(new { message = "Resultado registrado" });
         }
         
-        // --- 4. GET (Verificar si está en vivo) ---
-        // ¡¡NUEVO ENDPOINT!!
+        // GET (Verificar si está en vivo) 
         [HttpGet("{partidaId}/live")]
         [AllowAnonymous]
         public async Task<IActionResult> GetLiveStatus(int partidaId)
@@ -143,10 +137,10 @@ namespace EsportsApi.Controllers
                 var request = new HttpRequestMessage(HttpMethod.Get, 
                     $"https://api.twitch.tv/helix/streams?user_login={partida.TwitchChannelName}");
                 
-                // ¡¡AQUÍ VAN TUS LLAVES SECRETAS!!
+                
                 // (Ahora mismo fallará, porque necesitamos las llaves reales)
-                request.Headers.Add("Client-ID", "TU_CLIENT_ID_DE_TWITCH"); // <-- NECESITAMOS CAMBIAR ESTO
-                request.Headers.Add("Authorization", "Bearer TU_APP_ACCESS_TOKEN"); // <-- Y ESTO
+                request.Headers.Add("Client-ID", "TU_CLIENT_ID_DE_TWITCH"); //NECESITAMOS CAMBIAR ESTO
+                request.Headers.Add("Authorization", "Bearer TU_APP_ACCESS_TOKEN"); //Y ESTO
 
                 var response = await _httpClient.SendAsync(request);
 

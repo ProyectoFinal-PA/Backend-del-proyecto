@@ -1,4 +1,3 @@
-// En Program.cs
 using EsportsApi.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +8,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
-// --- 1. Configuración de CORS ---
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFlutterApp", policy =>
@@ -20,11 +19,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- 2. Configuración de Base de Datos ---
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
-// --- 3. Configuración de Autenticación JWT ---
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -41,11 +40,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// --- 4. Servicios Estándar ---
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// --- 5. Configurar Swagger para que use JWT ---
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Esports API", Version = "v1" });
@@ -56,7 +55,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        // --- ARREGLO DE LA BARRA \ ---
+        
         Description = @"Ingresa 'Bearer' [espacio] y luego tu token.
 Ejemplo: 'Bearer 12345abcdef'"
     });
@@ -72,17 +71,16 @@ Ejemplo: 'Bearer 12345abcdef'"
     });
 });
 
-// --- Construir la App ---
+
 var app = builder.Build();
 
-// --- Pipeline de Middlewares ---
-// Movimos Swagger fuera del 'if' para que sea público
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
 if (app.Environment.IsDevelopment())
 {
-    // El 'if' ahora está vacío
+    
 }
 
 app.UseHttpsRedirection();

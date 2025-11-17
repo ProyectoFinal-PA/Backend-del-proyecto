@@ -1,4 +1,3 @@
-// En Controllers/AdminController.cs
 using EsportsApi.Data;
 using EsportsApi.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +8,7 @@ namespace EsportsApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")] // ¡¡TODO ESTE CONTROLADOR ES SOLO PARA ADMINS!!
+    [Authorize(Roles = "Admin")] 
     public class AdminController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -19,7 +18,7 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
-        // --- 1. Ver todos los usuarios ---
+        
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers()
         {
@@ -29,7 +28,7 @@ namespace EsportsApi.Controllers
             return Ok(users);
         }
 
-        // --- 2. Promover un Jugador a Organizador ---
+       
         [HttpPost("promote/{userId}")]
         public async Task<IActionResult> PromoteToOrganizador(int userId)
         {
@@ -49,7 +48,7 @@ namespace EsportsApi.Controllers
             return BadRequest($"El usuario ya es {user.Role}.");
         }
         
-        // --- 3. Degradar un Organizador a Jugador ---
+       
         [HttpPost("demote/{userId}")]
         public async Task<IActionResult> DemoteToJugador(int userId)
         {

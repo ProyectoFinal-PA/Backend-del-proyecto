@@ -23,9 +23,8 @@ namespace EsportsApi.Models
         public string Status { get; set; } 
 
         public virtual Resultado Resultado { get; set; }
-
-        // --- ¡¡LÍNEA NUEVA AÑADIDA!! ---
-        public string? TwitchChannelName { get; set; } // El nombre del canal, ej: "ibai"
-        // -------------------------------
+        
+        public string? TwitchChannelName { get; set; } 
+        
     }
 }

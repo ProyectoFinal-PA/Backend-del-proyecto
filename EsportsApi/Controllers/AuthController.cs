@@ -1,4 +1,3 @@
-// En Controllers/AuthController.cs
 using EsportsApi.Data;
 using EsportsApi.DTOs;
 using EsportsApi.Models;
@@ -38,7 +37,7 @@ namespace EsportsApi.Controllers
                 Email = registerDto.Email,
                 Nickname = registerDto.Nickname,
                 PasswordHash = passwordHash,
-                Role = "Jugador" // Siempre como Jugador
+                Role = "Jugador" 
             };
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -56,8 +55,7 @@ namespace EsportsApi.Controllers
             
             var token = CreateJwtToken(user);
             
-            // --- ¡¡CAMBIO AQUÍ!! ---
-            // Ahora devolvemos el token Y el rol del usuario
+            
             return Ok(new LoginResponseDto(token, user.Role));
         }
         

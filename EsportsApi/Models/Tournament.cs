@@ -1,5 +1,4 @@
-// En Models/Tournament.cs
-using System.ComponentModel.DataAnnotations.Schema; // <-- ESTA LÍNEA ES IMPORTANTE
+using System.ComponentModel.DataAnnotations.Schema; 
 
 namespace EsportsApi.Models
 {
@@ -10,14 +9,12 @@ namespace EsportsApi.Models
         public string Game { get; set; }
         public DateTime StartDate { get; set; }
 
-        // --- LÍNEAS NUEVAS AÑADIDAS ---
+       
         public int OrganizadorId { get; set; } 
         
         [ForeignKey("OrganizadorId")]
         public virtual User Organizador { get; set; } 
-        // -------------------------------
-        // --- LÍNEA NUEVA AÑADIDA ---
         public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
-        // -------------------------------
+        
     }
 }

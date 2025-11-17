@@ -1,10 +1,9 @@
-// En Controllers/TournamentsController.cs
 using EsportsApi.Data;
-using EsportsApi.Models; // ¡Importante!
+using EsportsApi.Models; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims; // ¡¡MUY IMPORTANTE para leer el token!!
+using System.Security.Claims; 
 
 namespace EsportsApi.Controllers
 {
@@ -19,29 +18,27 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
-        // --- 1. GET (Leer) ---
-        // Cualquiera puede ver los torneos
+       
         [HttpGet]
-        [AllowAnonymous] // Opuesto a [Authorize], permite a todos
+        [AllowAnonymous] 
         public async Task<IActionResult> GetTournaments()
         {
-            // Borramos el código de prueba que crea un torneo
+           
             var tournaments = await _context.Tournaments
-                .Select(t => new // Seleccionamos solo los datos que queremos
+                .Select(t => new 
                 {
                     t.Id,
                     t.Name,
                     t.Game,
                     t.StartDate,
-                    OrganizadorNickname = t.Organizador.Nickname // Mostramos el apodo del dueño
+                    OrganizadorNickname = t.Organizador.Nickname 
                 })
                 .ToListAsync();
             
             return Ok(tournaments);
         }
 
-        // --- 2. POST (Crear) ---
-        // Solo los "Organizadores" pueden crear torneos
+     
         [HttpPost]
         [Authorize(Roles = "Organizador")]
         public async Task<IActionResult> CreateTournament([FromBody] TournamentCreateDto dto)
@@ -59,7 +56,7 @@ namespace EsportsApi.Controllers
                 Name = dto.Name,
                 Game = dto.Game,
                 StartDate = dto.StartDate,
-                OrganizadorId = organizadorId // Asignamos el torneo al usuario logueado
+                OrganizadorId = organizadorId 
             };
 
             _context.Tournaments.Add(newTournament);
@@ -68,10 +65,9 @@ namespace EsportsApi.Controllers
             return CreatedAtAction(nameof(GetTournaments), new { id = newTournament.Id }, newTournament);
         }
 
-        // --- 3. PUT (Actualizar) ---
-        // Solo "Admins" o el "Organizador dueño" pueden actualizar
+       
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin, Organizador")] // Dejamos entrar a ambos roles
+        [Authorize(Roles = "Admin, Organizador")] 
         public async Task<IActionResult> UpdateTournament(int id, [FromBody] TournamentCreateDto dto)
         {
             var tournament = await _context.Tournaments.FindAsync(id);
@@ -83,7 +79,7 @@ namespace EsportsApi.Controllers
 
             if (tournament.OrganizadorId != userId && userRole != "Admin")
             {
-                return Forbid(); // Error 403 (Prohibido)
+                return Forbid(); 
             }
             
             tournament.Name = dto.Name;
@@ -93,9 +89,7 @@ namespace EsportsApi.Controllers
 
             return Ok(tournament);
         }
-
-        // --- 4. DELETE (Borrar) ---
-        // Solo "Admins" o el "Organizador dueño" pueden borrar
+        
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> DeleteTournament(int id)
@@ -109,16 +103,16 @@ namespace EsportsApi.Controllers
 
             if (tournament.OrganizadorId != userId && userRole != "Admin")
             {
-                return Forbid(); // Error 403 (Prohibido)
+                return Forbid(); 
             }
 
             _context.Tournaments.Remove(tournament);
             await _context.SaveChangesAsync();
 
-            return NoContent(); // 204 (Éxito sin contenido)
+            return NoContent(); 
         }
     }
 
-    // --- DTO (Data Transfer Object) ---
+   
     public record TournamentCreateDto(string Name, string Game, DateTime StartDate);
 }
