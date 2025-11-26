@@ -18,7 +18,7 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
-        // 1. GET (Leer)
+        // 1. GET (Leer) - Incluimos Premio y Reglas
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetTournaments()
@@ -30,7 +30,9 @@ namespace EsportsApi.Controllers
                     t.Name,
                     t.Game,
                     t.StartDate,
-                    t.KickChannel, // Devolvemos el canal también
+                    t.KickChannel,
+                    t.Prize, // <--- Nuevo
+                    t.Rules, // <--- Nuevo
                     OrganizadorNickname = t.Organizador.Nickname
                 })
                 .ToListAsync();
@@ -38,7 +40,7 @@ namespace EsportsApi.Controllers
             return Ok(tournaments);
         }
 
-        // 2. POST (Crear) - ¡¡MODIFICADO!!
+        // 2. POST (Crear) - Guardamos Premio y Reglas
         [HttpPost]
         [Authorize(Roles = "Organizador")]
         public async Task<IActionResult> CreateTournament([FromBody] TournamentCreateDto dto)
@@ -53,7 +55,9 @@ namespace EsportsApi.Controllers
                 Name = dto.Name,
                 Game = dto.Game,
                 StartDate = dto.StartDate,
-                KickChannel = dto.KickChannel, // <-- GUARDAMOS EL CANAL
+                KickChannel = dto.KickChannel,
+                Prize = dto.Prize, // <--- Guardar
+                Rules = dto.Rules, // <--- Guardar
                 OrganizadorId = organizadorId 
             };
 
@@ -82,7 +86,9 @@ namespace EsportsApi.Controllers
             tournament.Name = dto.Name;
             tournament.Game = dto.Game;
             tournament.StartDate = dto.StartDate;
-            tournament.KickChannel = dto.KickChannel; // <-- ACTUALIZAMOS EL CANAL
+            tournament.KickChannel = dto.KickChannel;
+            tournament.Prize = dto.Prize; // <--- Actualizar
+            tournament.Rules = dto.Rules; // <--- Actualizar
             await _context.SaveChangesAsync();
 
             return Ok(tournament);
@@ -112,5 +118,12 @@ namespace EsportsApi.Controllers
     }
 
     // --- DTO ACTUALIZADO ---
-    public record TournamentCreateDto(string Name, string Game, DateTime StartDate, string? KickChannel);
+    public record TournamentCreateDto(
+        string Name, 
+        string Game, 
+        DateTime StartDate, 
+        string? KickChannel,
+        string? Prize, // <--- Nuevo
+        string? Rules  // <--- Nuevo
+    );
 }
