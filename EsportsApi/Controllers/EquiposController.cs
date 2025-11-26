@@ -1,4 +1,3 @@
-// En Controllers/EquiposController.cs
 using EsportsApi.Data;
 using EsportsApi.DTOs;
 using EsportsApi.Models;
@@ -21,7 +20,7 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
-        // POST: Crear un equipo (Jugador)
+        // 1. POST: Crear un equipo (Jugador)
         [HttpPost]
         [Authorize(Roles = "Jugador")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamDto dto)
@@ -52,13 +51,14 @@ namespace EsportsApi.Controllers
             _context.Teams.Add(newTeam);
             await _context.SaveChangesAsync();
             
+            // Actualizamos el TeamId del usuario explícitamente
             user.TeamId = newTeam.Id;
             await _context.SaveChangesAsync();
             
             return Ok(new { message = "Equipo creado con éxito", teamId = newTeam.Id });
         }
 
-        // POST: Unirse a un equipo (Jugador)
+        // 2. POST: Unirse a un equipo (Jugador)
         [HttpPost("{teamId}/join")]
         [Authorize(Roles = "Jugador")]
         public async Task<IActionResult> JoinTeam(int teamId)
@@ -68,6 +68,7 @@ namespace EsportsApi.Controllers
             var team = await _context.Teams.FindAsync(teamId);
             if (team == null) return NotFound(new { message = "El equipo no existe." });
             
+            // Verificar si ya está en un equipo de este torneo
             var isAlreadyInTeamForThisTournament = await _context.Teams
                 .Include(t => t.Members)
                 .AnyAsync(t => t.TournamentId == team.TournamentId && 
@@ -84,7 +85,7 @@ namespace EsportsApi.Controllers
             return Ok(new { message = "Te has unido al equipo " + team.Name });
         }
 
-        // GET: Ver equipos de un torneo (Público)
+        // 3. GET: Ver equipos de un torneo (Público)
         [HttpGet("torneo/{tournamentId}")]
         [AllowAnonymous] 
         public async Task<IActionResult> GetTeamsForTournament(int tournamentId)
@@ -108,15 +109,14 @@ namespace EsportsApi.Controllers
             return Ok(teams);
         }
 
-        // --- 4. DELETE (Borrar un equipo) - ¡¡MODIFICADO!! ---
-        // Ahora permitimos Organizador, Admin y Jugador (Capitán)
+        // 4. DELETE: Borrar un equipo (Admin, Organizador o Capitán)
         [HttpDelete("{teamId}")]
         [Authorize(Roles = "Admin, Organizador, Jugador")] 
         public async Task<IActionResult> DeleteTeam(int teamId)
         {
             var team = await _context.Teams
                 .Include(t => t.Members) 
-                .Include(t => t.Tournament) // <-- Incluimos el torneo para ver quién es el dueño
+                .Include(t => t.Tournament) 
                 .FirstOrDefaultAsync(t => t.Id == teamId);
             
             if (team == null) return NotFound();
@@ -124,18 +124,17 @@ namespace EsportsApi.Controllers
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var userRole = User.FindFirstValue(ClaimTypes.Role);
 
-            // --- Lógica de Permisos Mejorada ---
+            // Permisos: Capitán, Admin o el Organizador del Torneo
             bool isCaptain = team.CaptainId == userId;
             bool isAdmin = userRole == "Admin";
-            bool isTournamentOrganizer = team.Tournament.OrganizadorId == userId; // <-- Chequeo nuevo
+            bool isTournamentOrganizer = team.Tournament.OrganizadorId == userId;
 
-            // Si NO es capitán, NI Admin, NI el Organizador del torneo... Fuera.
             if (!isCaptain && !isAdmin && !isTournamentOrganizer)
             {
                 return Forbid();
             }
-            // -----------------------------------
 
+            // Liberar a los miembros antes de borrar
             foreach (var member in team.Members)
             {
                 member.TeamId = null;
@@ -145,6 +144,34 @@ namespace EsportsApi.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // 5. POST: Salir del Equipo (Abandonar) - ¡¡NUEVO!!
+        [HttpPost("leave")]
+        [Authorize(Roles = "Jugador")]
+        public async Task<IActionResult> LeaveTeam()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user.TeamId == null)
+            {
+                return BadRequest(new { message = "No perteneces a ningún equipo." });
+            }
+
+            var team = await _context.Teams.FindAsync(user.TeamId);
+            
+            // Si es el capitán, no puede abandonar, tiene que borrar el equipo o pasar el liderazgo
+            if (team != null && team.CaptainId == userId)
+            {
+                return BadRequest(new { message = "El capitán no puede abandonar. Debes eliminar el equipo." });
+            }
+
+            // Si es un miembro normal, lo sacamos
+            user.TeamId = null;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Has abandonado el equipo exitosamente." });
         }
     }
 }

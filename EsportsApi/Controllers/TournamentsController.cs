@@ -18,12 +18,13 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
-        // 1. GET (Leer) - Incluimos Premio y Reglas
+        // 1. GET (Leer) - Con Estado Calculado, Premios y Reglas
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetTournaments()
         {
             var tournaments = await _context.Tournaments
+                .Include(t => t.Partidas) // Importante para calcular el estado
                 .Select(t => new 
                 {
                     t.Id,
@@ -31,16 +32,24 @@ namespace EsportsApi.Controllers
                     t.Game,
                     t.StartDate,
                     t.KickChannel,
-                    t.Prize, // <--- Nuevo
-                    t.Rules, // <--- Nuevo
-                    OrganizadorNickname = t.Organizador.Nickname
+                    t.Prize, 
+                    t.Rules, 
+                    OrganizadorNickname = t.Organizador.Nickname,
+
+                    // --- CÁLCULO DEL ESTADO (NUEVO) ---
+                    Status = t.Partidas.Count == 0 
+                        ? "Inscripciones" // No hay partidas generadas
+                        : (t.Partidas.Any(p => p.NextMatchId == null && p.Status == "Jugada") 
+                            ? "Finalizado" // La partida final ya se jugó
+                            : "En Juego")  // Hay partidas pero la final no ha terminado
+                    // ----------------------------------
                 })
                 .ToListAsync();
             
             return Ok(tournaments);
         }
 
-        // 2. POST (Crear) - Guardamos Premio y Reglas
+        // 2. POST (Crear)
         [HttpPost]
         [Authorize(Roles = "Organizador")]
         public async Task<IActionResult> CreateTournament([FromBody] TournamentCreateDto dto)
@@ -56,8 +65,8 @@ namespace EsportsApi.Controllers
                 Game = dto.Game,
                 StartDate = dto.StartDate,
                 KickChannel = dto.KickChannel,
-                Prize = dto.Prize, // <--- Guardar
-                Rules = dto.Rules, // <--- Guardar
+                Prize = dto.Prize,
+                Rules = dto.Rules,
                 OrganizadorId = organizadorId 
             };
 
@@ -87,8 +96,8 @@ namespace EsportsApi.Controllers
             tournament.Game = dto.Game;
             tournament.StartDate = dto.StartDate;
             tournament.KickChannel = dto.KickChannel;
-            tournament.Prize = dto.Prize; // <--- Actualizar
-            tournament.Rules = dto.Rules; // <--- Actualizar
+            tournament.Prize = dto.Prize;
+            tournament.Rules = dto.Rules;
             await _context.SaveChangesAsync();
 
             return Ok(tournament);
@@ -117,13 +126,12 @@ namespace EsportsApi.Controllers
         }
     }
 
-    // --- DTO ACTUALIZADO ---
     public record TournamentCreateDto(
         string Name, 
         string Game, 
         DateTime StartDate, 
         string? KickChannel,
-        string? Prize, // <--- Nuevo
-        string? Rules  // <--- Nuevo
+        string? Prize, 
+        string? Rules 
     );
 }
