@@ -8,10 +8,12 @@ namespace EsportsApi.Models
         public string Name { get; set; }
         public string Game { get; set; }
         public DateTime StartDate { get; set; }
-
-        // --- LÍNEA NUEVA ---
-        public string? KickChannel { get; set; } // Canal oficial del torneo
-        // -------------------
+        public string? KickChannel { get; set; }
+        
+        // --- NUEVOS CAMPOS ---
+        public string? Prize { get; set; } // Premio (Opcional)
+        public string? Rules { get; set; } // Reglas (Opcional)
+        // ---------------------
 
         public int OrganizadorId { get; set; } 
         [ForeignKey("OrganizadorId")]
