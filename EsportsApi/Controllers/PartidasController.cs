@@ -1,4 +1,3 @@
-// En Controllers/PartidasController.cs
 using EsportsApi.Data;
 using EsportsApi.DTOs;
 using EsportsApi.Models;
@@ -6,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json; // Necesario para el JSON de Twitch (si se usa)
+using System.Text.Json;
 
 namespace EsportsApi.Controllers
 {
@@ -15,7 +14,6 @@ namespace EsportsApi.Controllers
     public class PartidasController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        // Se usa para llamar a APIs externas (como Twitch o Kick)
         private readonly HttpClient _httpClient;
 
         public PartidasController(ApplicationDbContext context)
@@ -32,9 +30,9 @@ namespace EsportsApi.Controllers
             var tournament = await _context.Tournaments.FindAsync(dto.TournamentId);
             if (tournament == null) return NotFound("Torneo no encontrado");
 
-            // Validar permisos
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var userRole = User.FindFirstValue(ClaimTypes.Role);
+            
             if (tournament.OrganizadorId != userId && userRole != "Admin")
             {
                 return Forbid("No eres el organizador de este torneo.");
@@ -121,7 +119,7 @@ namespace EsportsApi.Controllers
             return Ok(new { message = "Resultado registrado" });
         }
         
-        // --- 4. GET (Verificar si está en vivo - TWITCH) ---
+        // --- 4. GET (Verificar si está en vivo - TWITCH API) ---
         [HttpGet("{partidaId}/live")]
         [AllowAnonymous]
         public async Task<IActionResult> GetLiveStatus(int partidaId)
@@ -138,7 +136,8 @@ namespace EsportsApi.Controllers
                 var request = new HttpRequestMessage(HttpMethod.Get, 
                     $"https://api.twitch.tv/helix/streams?user_login={partida.TwitchChannelName}");
                 
-                // ¡¡AQUÍ VAN TUS LLAVES DE TWITCH!! (Si las consigues después)
+                // Recuerda: Si usas Kick en el frontend, este endpoint no se usa.
+                // Si usas Twitch, necesitas las llaves reales aquí.
                 request.Headers.Add("Client-ID", "TU_CLIENT_ID_DE_TWITCH"); 
                 request.Headers.Add("Authorization", "Bearer TU_APP_ACCESS_TOKEN"); 
 
@@ -146,7 +145,6 @@ namespace EsportsApi.Controllers
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    // Si Twitch falla, asumimos offline
                     var errorBody = await response.Content.ReadAsStringAsync();
                     return Ok(new { isLive = false, message = "Error de API de Twitch", error = errorBody });
                 }
@@ -155,7 +153,6 @@ namespace EsportsApi.Controllers
                 var twitchResponse = JsonDocument.Parse(content);
                 var data = twitchResponse.RootElement.GetProperty("data");
 
-                // Si "data" tiene elementos, está en vivo
                 if (data.GetArrayLength() > 0)
                 {
                     return Ok(new { isLive = true, channel = partida.TwitchChannelName });
@@ -170,12 +167,11 @@ namespace EsportsApi.Controllers
         }
 
         // --- 5. GENERAR SORTEO AUTOMÁTICO (BRACKETS) ---
-        // ¡¡ESTA ES LA NUEVA FUNCIONALIDAD!!
+        // ¡¡ESTA ES LA NUEVA FUNCIONALIDAD QUE PEDISTE!!
         [HttpPost("generar/{tournamentId}")]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> GenerateFixture(int tournamentId)
         {
-            // 1. Validar permisos (Dueño del torneo)
             var tournament = await _context.Tournaments.FindAsync(tournamentId);
             if (tournament == null) return NotFound("Torneo no encontrado");
 
@@ -187,14 +183,12 @@ namespace EsportsApi.Controllers
                 return Forbid("No eres el organizador de este torneo.");
             }
 
-            // 2. Verificar si ya existen partidas (para no duplicar)
             var existingMatches = await _context.Partidas.AnyAsync(p => p.TournamentId == tournamentId);
             if (existingMatches)
             {
                 return BadRequest(new { message = "El torneo ya tiene partidas creadas." });
             }
 
-            // 3. Obtener los equipos
             var teams = await _context.Teams
                 .Where(t => t.TournamentId == tournamentId)
                 .ToListAsync();
@@ -204,11 +198,10 @@ namespace EsportsApi.Controllers
                 return BadRequest(new { message = "Necesitas un número par de equipos (min 2) para sortear." });
             }
 
-            // 4. ¡EL SORTEO! (Barajar la lista aleatoriamente)
+            // Mezclamos los equipos aleatoriamente
             var random = new Random();
             var shuffledTeams = teams.OrderBy(x => random.Next()).ToList();
 
-            // 5. Crear los emparejamientos (1 vs 2, 3 vs 4...)
             int matchesCount = 0;
             for (int i = 0; i < shuffledTeams.Count; i += 2)
             {
@@ -221,7 +214,9 @@ namespace EsportsApi.Controllers
                     TeamA_Id = teamA.Id,
                     TeamB_Id = teamB.Id,
                     ScheduledTime = DateTime.Now.AddDays(1), // Por defecto, mañana
-                    Status = "Pendiente"
+                    Status = "Pendiente",
+                    // Heredamos el canal del Torneo automáticamente para Kick/Twitch
+                    TwitchChannelName = tournament.KickChannel 
                 };
                 _context.Partidas.Add(partida);
                 matchesCount++;
