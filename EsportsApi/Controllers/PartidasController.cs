@@ -22,7 +22,7 @@ namespace EsportsApi.Controllers
             _httpClient = new HttpClient(); 
         }
 
-        // GET: Ver partidas (Incluimos los nuevos datos)
+        // GET: Ver partidas (Incluye datos del Bracket)
         [HttpGet("torneo/{tournamentId}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetPartidasForTournament(int tournamentId)
@@ -39,10 +39,10 @@ namespace EsportsApi.Controllers
                     p.Id,
                     p.ScheduledTime,
                     p.Status,
-                    p.Round,      // Nuevo
-                    p.Label,      // Nuevo
-                    p.NextMatchId, // Nuevo
-                    TeamA = p.TeamA != null ? p.TeamA.Name : "TBD", // Si no hay equipo, mostrar TBD
+                    p.Round,      
+                    p.Label,      
+                    p.NextMatchId, 
+                    TeamA = p.TeamA != null ? p.TeamA.Name : "TBD", // TBD = A determinar
                     TeamB = p.TeamB != null ? p.TeamB.Name : "TBD",
                     TwitchChannel = p.TwitchChannelName, 
                     Resultado = p.Resultado == null ? null : new 
@@ -57,7 +57,38 @@ namespace EsportsApi.Controllers
             return Ok(partidas);
         }
 
-        // GENERAR BRACKET AUTOMÁTICO (Algoritmo Complejo)
+        // POST: Crear Partida Manualmente
+        [HttpPost]
+        [Authorize(Roles = "Admin, Organizador")]
+        public async Task<IActionResult> CreatePartida([FromBody] CreatePartidaDto dto)
+        {
+            var tournament = await _context.Tournaments.FindAsync(dto.TournamentId);
+            if (tournament == null) return NotFound("Torneo no encontrado");
+
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+            if (tournament.OrganizadorId != userId && userRole != "Admin")
+                return Forbid("No eres el organizador de este torneo.");
+            
+            var partida = new Partida
+            {
+                TournamentId = dto.TournamentId,
+                TeamA_Id = dto.TeamA_Id,
+                TeamB_Id = dto.TeamB_Id,
+                ScheduledTime = dto.ScheduledTime,
+                Status = "Pendiente",
+                TwitchChannelName = dto.TwitchChannelName,
+                Round = 1, // Por defecto ronda 1 si es manual
+                Label = "Partida Manual"
+            };
+
+            _context.Partidas.Add(partida);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Partida creada", partidaId = partida.Id });
+        }
+
+        // POST: GENERAR BRACKET AUTOMÁTICO (Lógica de Árbol)
         [HttpPost("generar/{tournamentId}")]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> GenerateFixture(int tournamentId)
@@ -74,20 +105,19 @@ namespace EsportsApi.Controllers
 
             var teams = await _context.Teams.Where(t => t.TournamentId == tournamentId).ToListAsync();
             
-            // Validamos potencia de 2 (2, 4, 8, 16) para bracket perfecto
             int count = teams.Count;
+            // Validamos potencia de 2 básica (2, 4, 8, 16)
             if (count < 2 || (count & (count - 1)) != 0)
-                return BadRequest(new { message = "Por ahora, necesitamos 2, 4, 8 o 16 equipos para un bracket perfecto." });
+                return BadRequest(new { message = "Necesitas 2, 4, 8 o 16 equipos para un bracket perfecto." });
 
-            // Barajar equipos
+            // Barajar
             var random = new Random();
             var shuffledTeams = teams.OrderBy(x => random.Next()).ToList();
 
-            // --- ALGORITMO DE CREACIÓN DE BRACKET ---
             List<Partida> currentRoundMatches = new List<Partida>();
             int roundNumber = 1;
 
-            // 1. Crear la Ronda 1 (Con los equipos reales)
+            // 1. Crear Ronda 1
             for (int i = 0; i < shuffledTeams.Count; i += 2)
             {
                 var partida = new Partida
@@ -99,14 +129,14 @@ namespace EsportsApi.Controllers
                     Status = "Pendiente",
                     TwitchChannelName = tournament.KickChannel,
                     Round = roundNumber,
-                    Label = $"Ronda {roundNumber} - Juego {(i/2)+1}"
+                    Label = $"Ronda {roundNumber}"
                 };
                 currentRoundMatches.Add(partida);
                 _context.Partidas.Add(partida);
             }
-            await _context.SaveChangesAsync(); // Guardamos para tener IDs
+            await _context.SaveChangesAsync(); 
 
-            // 2. Crear Rondas Siguientes (Vacías) hasta la final
+            // 2. Crear Rondas Siguientes (Vacías)
             while (currentRoundMatches.Count > 1)
             {
                 roundNumber++;
@@ -114,12 +144,11 @@ namespace EsportsApi.Controllers
 
                 for (int i = 0; i < currentRoundMatches.Count; i += 2)
                 {
-                    // Creamos la partida "padre" (vacía)
                     var nextMatch = new Partida
                     {
                         TournamentId = tournamentId,
-                        TeamA_Id = null, // Esperando ganador
-                        TeamB_Id = null, // Esperando ganador
+                        TeamA_Id = null, // TBD
+                        TeamB_Id = null, // TBD
                         ScheduledTime = DateTime.Now.AddDays(roundNumber),
                         Status = "Pendiente",
                         TwitchChannelName = tournament.KickChannel,
@@ -127,26 +156,22 @@ namespace EsportsApi.Controllers
                         Label = (currentRoundMatches.Count == 2) ? "GRAN FINAL" : $"Ronda {roundNumber}"
                     };
                     _context.Partidas.Add(nextMatch);
-                    await _context.SaveChangesAsync(); // Guardamos para obtener ID
+                    await _context.SaveChangesAsync(); 
                     
                     nextRoundMatches.Add(nextMatch);
 
-                    // Conectamos los dos partidos anteriores a este nuevo
+                    // Conectar las partidas previas a esta nueva
                     currentRoundMatches[i].NextMatchId = nextMatch.Id;
                     currentRoundMatches[i+1].NextMatchId = nextMatch.Id;
                 }
-                
-                // Guardamos las conexiones
                 await _context.SaveChangesAsync();
-                
-                // Avanzamos a la siguiente ronda
                 currentRoundMatches = nextRoundMatches;
             }
 
             return Ok(new { message = "Bracket generado exitosamente." });
         }
 
-        // REGISTRAR RESULTADO Y AVANZAR GANADOR
+        // POST: Registrar Resultado y AVANZAR GANADOR
         [HttpPost("{partidaId}/resultado")]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> RegisterResultado(int partidaId, [FromBody] RegisterResultadoDto dto)
@@ -157,13 +182,11 @@ namespace EsportsApi.Controllers
 
             if (partida == null) return NotFound("Partida no encontrada");
 
-            // Validar permisos...
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var userRole = User.FindFirstValue(ClaimTypes.Role);
             if (partida.Tournament.OrganizadorId != userId && userRole != "Admin")
                 return Forbid();
 
-            // Guardar resultado
             var resultado = new Resultado
             {
                 PartidaId = partidaId,
@@ -174,32 +197,68 @@ namespace EsportsApi.Controllers
             _context.Resultados.Add(resultado);
             partida.Status = "Jugada";
 
-            // --- LÓGICA DE AVANCE DE RONDA ---
+            // --- LÓGICA DE AVANCE EN EL BRACKET ---
             if (partida.NextMatchId != null)
             {
                 var nextMatch = await _context.Partidas.FindAsync(partida.NextMatchId);
                 if (nextMatch != null)
                 {
-                    // Si el slot A está vacío, ponlo ahí. Si no, ponlo en el B.
                     if (nextMatch.TeamA_Id == null)
                         nextMatch.TeamA_Id = dto.WinnerTeamId;
                     else
                         nextMatch.TeamB_Id = dto.WinnerTeamId;
                 }
             }
-            // ---------------------------------
+            // --------------------------------------
 
             await _context.SaveChangesAsync();
             return Ok(new { message = "Resultado registrado y ganador avanzado." });
         }
-
-        // (Mantén aquí el método GetLiveStatus tal cual estaba)
+        
+        // GET: Verificar Stream (¡¡ESTE ES EL QUE FALTABA!!)
         [HttpGet("{partidaId}/live")]
         [AllowAnonymous]
         public async Task<IActionResult> GetLiveStatus(int partidaId)
         {
-             // ... (Pega aquí el código de GetLiveStatus que ya tenías) ...
-             return Ok(new { isLive = false }); // Placeholder si no lo pegas
+            var partida = await _context.Partidas.FindAsync(partidaId);
+            
+            if (partida == null || string.IsNullOrEmpty(partida.TwitchChannelName))
+            {
+                return Ok(new { isLive = false, message = "Partida no encontrada o sin canal." });
+            }
+
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, 
+                    $"https://api.twitch.tv/helix/streams?user_login={partida.TwitchChannelName}");
+                
+                // TUS LLAVES DE TWITCH
+                request.Headers.Add("Client-ID", "TU_CLIENT_ID_DE_TWITCH"); 
+                request.Headers.Add("Authorization", "Bearer TU_APP_ACCESS_TOKEN"); 
+
+                var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    return Ok(new { isLive = false, message = "Error de API de Twitch", error = errorBody });
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var twitchResponse = JsonDocument.Parse(content);
+                var data = twitchResponse.RootElement.GetProperty("data");
+
+                if (data.GetArrayLength() > 0)
+                {
+                    return Ok(new { isLive = true, channel = partida.TwitchChannelName });
+                }
+                
+                return Ok(new { isLive = false, message = "Offline" });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { isLive = false, message = ex.Message });
+            }
         }
     }
 }
