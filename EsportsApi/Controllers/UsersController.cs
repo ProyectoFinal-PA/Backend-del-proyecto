@@ -9,7 +9,7 @@ namespace EsportsApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Solo usuarios logueados pueden ver su perfil
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -19,13 +19,12 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
+        // GET: Mi Perfil
         [HttpGet("profile")]
         public async Task<IActionResult> GetMyProfile()
         {
-            // 1. Saber quién soy
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            // 2. Buscar mis datos + Equipo + Torneo
             var user = await _context.Users
                 .Include(u => u.Team)
                 .ThenInclude(t => t.Tournament)
@@ -33,7 +32,6 @@ namespace EsportsApi.Controllers
 
             if (user == null) return NotFound();
 
-            // 3. Calcular estadísticas (Partidas jugadas por mi equipo)
             int matchesCount = 0;
             if (user.TeamId != null)
             {
@@ -42,17 +40,46 @@ namespace EsportsApi.Controllers
                                      && p.Status == "Jugada");
             }
 
-            // 4. Armar el DTO
+            // Enviamos el AvatarId también
             var profile = new UserProfileDto(
                 user.Nickname,
                 user.Email,
                 user.Role,
-                user.Team?.Name ?? "Sin Equipo", // Si es null, pone "Sin Equipo"
+                user.Team?.Name ?? "Sin Equipo", 
                 user.Team?.Tournament?.Name ?? "Ninguno",
-                matchesCount
+                matchesCount,
+                user.AvatarId // <--- NUEVO
             );
 
             return Ok(profile);
         }
+
+        // PUT: Cambiar Avatar (¡NUEVO!)
+        [HttpPut("avatar")]
+        public async Task<IActionResult> UpdateAvatar([FromBody] UpdateAvatarDto dto)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null) return NotFound();
+
+            user.AvatarId = dto.AvatarId; // Actualizamos
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Avatar actualizado" });
+        }
     }
+
+    // DTOs
+    public record UserProfileDto(
+        string Nickname, 
+        string Email, 
+        string Role, 
+        string? TeamName, 
+        string? TournamentName, 
+        int MatchesPlayed,
+        string AvatarId // <--- Agregado al DTO
+    );
+
+    public record UpdateAvatarDto(string AvatarId);
 }

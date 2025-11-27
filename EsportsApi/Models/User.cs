@@ -11,6 +11,8 @@ namespace EsportsApi.Models
         public string PasswordHash { get; set; }
         public string Role { get; set; }
         
+        public string AvatarId { get; set; } = "default";
+        
         public virtual ICollection<Tournament> TorneosOrganizados { get; set; } = new List<Tournament>();
         
         public int? TeamId { get; set; } 
