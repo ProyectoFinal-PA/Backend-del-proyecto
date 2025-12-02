@@ -18,31 +18,31 @@ namespace EsportsApi.Controllers
             _context = context;
         }
 
-        // 1. GET (Leer) - Con Estado Calculado, Premios y Reglas
+        // 1. GET (Leer) - Con Estado, Premios, Reglas e IMAGEN
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetTournaments()
         {
             var tournaments = await _context.Tournaments
-                .Include(t => t.Partidas) // Importante para calcular el estado
+                .Include(t => t.Partidas)
                 .Select(t => new 
                 {
                     t.Id,
                     t.Name,
                     t.Game,
+                    t.GameImageUrl, // <--- Importante para mostrar la imagen en el front
                     t.StartDate,
                     t.KickChannel,
                     t.Prize, 
                     t.Rules, 
                     OrganizadorNickname = t.Organizador.Nickname,
 
-                    // --- CÁLCULO DEL ESTADO ---
+                    // Cálculo del Estado
                     Status = t.Partidas.Count == 0 
-                        ? "Inscripciones" // No hay partidas generadas
+                        ? "Inscripciones" 
                         : (t.Partidas.Any(p => p.NextMatchId == null && p.Status == "Jugada") 
-                            ? "Finalizado" // La partida final ya se jugó
-                            : "En Juego")  // Hay partidas pero la final no ha terminado
-                    // --------------------------
+                            ? "Finalizado" 
+                            : "En Juego")
                 })
                 .ToListAsync();
             
@@ -63,6 +63,7 @@ namespace EsportsApi.Controllers
             {
                 Name = dto.Name,
                 Game = dto.Game,
+                GameImageUrl = dto.GameImageUrl, // <--- Guardamos la imagen
                 StartDate = dto.StartDate,
                 KickChannel = dto.KickChannel,
                 Prize = dto.Prize,
@@ -94,10 +95,12 @@ namespace EsportsApi.Controllers
             
             tournament.Name = dto.Name;
             tournament.Game = dto.Game;
+            tournament.GameImageUrl = dto.GameImageUrl; // <--- Actualizamos la imagen
             tournament.StartDate = dto.StartDate;
             tournament.KickChannel = dto.KickChannel;
             tournament.Prize = dto.Prize;
             tournament.Rules = dto.Rules;
+            
             await _context.SaveChangesAsync();
 
             return Ok(tournament);
@@ -125,18 +128,17 @@ namespace EsportsApi.Controllers
             return NoContent();
         }
 
-        // --- 5. GET: SALÓN DE LA FAMA (Campeones) - ¡NUEVO! ---
+        // 5. GET: SALÓN DE LA FAMA (Campeones)
         [HttpGet("hall-of-fame")]
         [AllowAnonymous]
         public async Task<IActionResult> GetHallOfFame()
         {
-            // Buscamos todas las partidas que sean "GRAN FINAL" y que ya se hayan jugado
             var finals = await _context.Partidas
                 .Include(p => p.Tournament)
                 .Include(p => p.Resultado)
-                .Include(p => p.TeamA) // Necesitamos los nombres de los equipos
+                .Include(p => p.TeamA)
                 .Include(p => p.TeamB)
-                .Where(p => p.Label.Contains("FINAL") && p.Status == "Jugada") // Usamos Contains por si dice "GRAN FINAL"
+                .Where(p => p.Label.Contains("FINAL") && p.Status == "Jugada")
                 .ToListAsync();
 
             var hallOfFame = new List<object>();
@@ -145,7 +147,6 @@ namespace EsportsApi.Controllers
             {
                 if (partida.Resultado != null && partida.Resultado.WinnerTeamId != null)
                 {
-                    // Determinamos el nombre del ganador
                     string winnerName = "Desconocido";
                     if (partida.Resultado.WinnerTeamId == partida.TeamA_Id)
                         winnerName = partida.TeamA.Name;
@@ -166,11 +167,13 @@ namespace EsportsApi.Controllers
         }
     }
 
+    // DTO con GameImageUrl incluido
     public record TournamentCreateDto(
         string Name, 
         string Game, 
+        string? GameImageUrl, 
         DateTime StartDate, 
-        string? KickChannel,
+        string? KickChannel, 
         string? Prize, 
         string? Rules 
     );
