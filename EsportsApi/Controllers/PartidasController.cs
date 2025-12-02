@@ -22,7 +22,53 @@ namespace EsportsApi.Controllers
             _httpClient = new HttpClient(); 
         }
 
-        // --- 1. POST (Crear una Partida MANUALMENTE) ---
+        // --- 1. GET (Ver partidas) - ¡CON IDs Y LOGOS! ---
+        [HttpGet("torneo/{tournamentId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPartidasForTournament(int tournamentId)
+        {
+            var partidas = await _context.Partidas
+                .Where(p => p.TournamentId == tournamentId)
+                .Include(p => p.TeamA)
+                .Include(p => p.TeamB)
+                .Include(p => p.Resultado)
+                .OrderBy(p => p.Round)
+                .ThenBy(p => p.Id)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.ScheduledTime,
+                    p.Status,
+                    p.Round,      
+                    p.Label,      
+                    p.NextMatchId, 
+                    
+                    // IDs para la lógica de ganadores
+                    TeamAId = p.TeamA_Id, 
+                    TeamBId = p.TeamB_Id,
+
+                    // Nombres
+                    TeamA = p.TeamA != null ? p.TeamA.Name : "TBD", 
+                    TeamB = p.TeamB != null ? p.TeamB.Name : "TBD",
+
+                    // Logos para el diseño bonito
+                    TeamALogo = p.TeamA != null ? p.TeamA.LogoUrl : null,
+                    TeamBLogo = p.TeamB != null ? p.TeamB.LogoUrl : null,
+
+                    TwitchChannel = p.TwitchChannelName, 
+                    Resultado = p.Resultado == null ? null : new 
+                    {
+                        p.Resultado.ScoreTeamA,
+                        p.Resultado.ScoreTeamB,
+                        p.Resultado.WinnerTeamId
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(partidas);
+        }
+
+        // --- 2. POST (Crear Partida Manual) ---
         [HttpPost]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> CreatePartida([FromBody] CreatePartidaDto dto)
@@ -55,48 +101,7 @@ namespace EsportsApi.Controllers
             return Ok(new { message = "Partida creada", partidaId = partida.Id });
         }
 
-        // --- 2. GET (Ver partidas - ¡¡CORREGIDO PARA ENVIAR IDs!!) ---
-        [HttpGet("torneo/{tournamentId}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetPartidasForTournament(int tournamentId)
-        {
-            var partidas = await _context.Partidas
-                .Where(p => p.TournamentId == tournamentId)
-                .Include(p => p.TeamA)
-                .Include(p => p.TeamB)
-                .Include(p => p.Resultado)
-                .OrderBy(p => p.Round)
-                .ThenBy(p => p.Id)
-                .Select(p => new
-                {
-                    p.Id,
-                    p.ScheduledTime,
-                    p.Status,
-                    p.Round,      
-                    p.Label,      
-                    p.NextMatchId, 
-                    
-                    // --- ¡¡ESTO ES LO QUE FALTABA!! ---
-                    TeamAId = p.TeamA_Id, 
-                    TeamBId = p.TeamB_Id,
-                    // ----------------------------------
-
-                    TeamA = p.TeamA != null ? p.TeamA.Name : "TBD", 
-                    TeamB = p.TeamB != null ? p.TeamB.Name : "TBD",
-                    TwitchChannel = p.TwitchChannelName, 
-                    Resultado = p.Resultado == null ? null : new 
-                    {
-                        p.Resultado.ScoreTeamA,
-                        p.Resultado.ScoreTeamB,
-                        p.Resultado.WinnerTeamId
-                    }
-                })
-                .ToListAsync();
-
-            return Ok(partidas);
-        }
-
-        // --- 3. POST (Registrar un Resultado y Avanzar Bracket) ---
+        // --- 3. POST (Registrar Resultado y Avanzar Bracket) ---
         [HttpPost("{partidaId}/resultado")]
         [Authorize(Roles = "Admin, Organizador")]
         public async Task<IActionResult> RegisterResultado(int partidaId, [FromBody] RegisterResultadoDto dto)
@@ -126,7 +131,6 @@ namespace EsportsApi.Controllers
             _context.Resultados.Add(resultado);
             partida.Status = "Jugada"; 
 
-            // Lógica de avance en el bracket
             if (partida.NextMatchId != null)
             {
                 var nextMatch = await _context.Partidas.FindAsync(partida.NextMatchId);
@@ -140,11 +144,10 @@ namespace EsportsApi.Controllers
             }
             
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Resultado registrado" });
         }
         
-        // --- 4. GET (Verificar si está en vivo - Twitch/Kick) ---
+        // --- 4. GET (Verificar si está en vivo) ---
         [HttpGet("{partidaId}/live")]
         [AllowAnonymous]
         public async Task<IActionResult> GetLiveStatus(int partidaId)
@@ -219,7 +222,6 @@ namespace EsportsApi.Controllers
                 return BadRequest(new { message = "Necesitas un número par de equipos (min 2) para sortear." });
             }
 
-            // Sorteo
             var random = new Random();
             var shuffledTeams = teams.OrderBy(x => random.Next()).ToList();
 
@@ -239,7 +241,7 @@ namespace EsportsApi.Controllers
                     TeamB_Id = teamB.Id,
                     ScheduledTime = DateTime.Now.AddDays(1),
                     Status = "Pendiente",
-                    TwitchChannelName = tournament.KickChannel, // Heredar canal
+                    TwitchChannelName = tournament.KickChannel, 
                     Round = roundNumber,
                     Label = $"Ronda {roundNumber}"
                 };
