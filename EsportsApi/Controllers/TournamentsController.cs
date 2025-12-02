@@ -36,13 +36,13 @@ namespace EsportsApi.Controllers
                     t.Rules, 
                     OrganizadorNickname = t.Organizador.Nickname,
 
-                    // --- CÁLCULO DEL ESTADO (NUEVO) ---
+                    // --- CÁLCULO DEL ESTADO ---
                     Status = t.Partidas.Count == 0 
                         ? "Inscripciones" // No hay partidas generadas
                         : (t.Partidas.Any(p => p.NextMatchId == null && p.Status == "Jugada") 
                             ? "Finalizado" // La partida final ya se jugó
                             : "En Juego")  // Hay partidas pero la final no ha terminado
-                    // ----------------------------------
+                    // --------------------------
                 })
                 .ToListAsync();
             
@@ -123,6 +123,46 @@ namespace EsportsApi.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // --- 5. GET: SALÓN DE LA FAMA (Campeones) - ¡NUEVO! ---
+        [HttpGet("hall-of-fame")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetHallOfFame()
+        {
+            // Buscamos todas las partidas que sean "GRAN FINAL" y que ya se hayan jugado
+            var finals = await _context.Partidas
+                .Include(p => p.Tournament)
+                .Include(p => p.Resultado)
+                .Include(p => p.TeamA) // Necesitamos los nombres de los equipos
+                .Include(p => p.TeamB)
+                .Where(p => p.Label.Contains("FINAL") && p.Status == "Jugada") // Usamos Contains por si dice "GRAN FINAL"
+                .ToListAsync();
+
+            var hallOfFame = new List<object>();
+
+            foreach (var partida in finals)
+            {
+                if (partida.Resultado != null && partida.Resultado.WinnerTeamId != null)
+                {
+                    // Determinamos el nombre del ganador
+                    string winnerName = "Desconocido";
+                    if (partida.Resultado.WinnerTeamId == partida.TeamA_Id)
+                        winnerName = partida.TeamA.Name;
+                    else if (partida.Resultado.WinnerTeamId == partida.TeamB_Id)
+                        winnerName = partida.TeamB.Name;
+
+                    hallOfFame.Add(new
+                    {
+                        TournamentName = partida.Tournament.Name,
+                        Game = partida.Tournament.Game,
+                        WinnerTeam = winnerName,
+                        Date = partida.ScheduledTime
+                    });
+                }
+            }
+
+            return Ok(hallOfFame);
         }
     }
 
