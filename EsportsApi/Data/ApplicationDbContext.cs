@@ -14,13 +14,14 @@ namespace EsportsApi.Data
         public DbSet<Team> Teams { get; set; }
         public DbSet<Partida> Partidas { get; set; }
         public DbSet<Resultado> Resultados { get; set; }
-        public DbSet<Report> Reports { get; set; } // La tabla nueva
+        public DbSet<Report> Reports { get; set; }
+        public DbSet<Message> Messages { get; set; } // <-- Nueva tabla
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             
-            // --- Configuración de Equipos (Ya estaba) ---
+            // --- Configuración de Equipos ---
             modelBuilder.Entity<Team>()
                 .HasOne(t => t.Captain)
                 .WithMany(u => u.TeamsCaptained)
@@ -33,7 +34,7 @@ namespace EsportsApi.Data
                 .HasForeignKey(u => u.TeamId)
                 .OnDelete(DeleteBehavior.NoAction); 
             
-            // --- Configuración de Partidas (Ya estaba) ---
+            // --- Configuración de Partidas ---
             modelBuilder.Entity<Partida>()
                 .HasOne(p => p.TeamA)
                 .WithMany() 
@@ -51,18 +52,31 @@ namespace EsportsApi.Data
                 .WithOne(r => r.Partida) 
                 .HasForeignKey<Resultado>(r => r.PartidaId);
 
-            // --- ¡ESTA ES LA CORRECCIÓN PARA EL ERROR 1785! ---
+            // --- Configuración de Reportes ---
             modelBuilder.Entity<Report>()
                 .HasOne(r => r.Reporter)
                 .WithMany()
                 .HasForeignKey(r => r.ReporterId)
-                .OnDelete(DeleteBehavior.NoAction); // Evita el ciclo al borrar usuario
+                .OnDelete(DeleteBehavior.NoAction); 
 
             modelBuilder.Entity<Report>()
                 .HasOne(r => r.Tournament)
                 .WithMany()
                 .HasForeignKey(r => r.TournamentId)
-                .OnDelete(DeleteBehavior.NoAction); // Evita el ciclo al borrar torneo
+                .OnDelete(DeleteBehavior.NoAction); 
+
+            // --- ¡ESTA ES LA CORRECCIÓN PARA LOS MENSAJES! ---
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.NoAction); // Evita ciclo al borrar usuario
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Tournament)
+                .WithMany()
+                .HasForeignKey(m => m.TournamentId)
+                .OnDelete(DeleteBehavior.NoAction); // Evita ciclo al borrar torneo
             // -------------------------------------------------
         }
     }

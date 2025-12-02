@@ -19,5 +19,7 @@ namespace EsportsApi.Models
         public string Reason { get; set; } // El motivo seleccionado (ej: "Fraude")
         public string Description { get; set; } // La explicación detallada
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        
+        public string Status { get; set; } = "Pendiente";
     }
 }

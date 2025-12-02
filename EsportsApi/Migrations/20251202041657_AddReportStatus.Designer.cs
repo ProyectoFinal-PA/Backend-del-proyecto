@@ -4,6 +4,7 @@ using EsportsApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EsportsApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251202041657_AddReportStatus")]
+    partial class AddReportStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,36 +24,6 @@ namespace EsportsApi.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("EsportsApi.Models.Message", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("SentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TournamentId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TournamentId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Messages");
-                });
 
             modelBuilder.Entity("EsportsApi.Models.Partida", b =>
                 {
@@ -270,25 +243,6 @@ namespace EsportsApi.Migrations
                     b.HasIndex("TeamId");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("EsportsApi.Models.Message", b =>
-                {
-                    b.HasOne("EsportsApi.Models.Tournament", "Tournament")
-                        .WithMany()
-                        .HasForeignKey("TournamentId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("EsportsApi.Models.User", "Sender")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Sender");
-
-                    b.Navigation("Tournament");
                 });
 
             modelBuilder.Entity("EsportsApi.Models.Partida", b =>
