@@ -12,17 +12,15 @@ namespace EsportsApi.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Tournament> Tournaments { get; set; }
         public DbSet<Team> Teams { get; set; }
-        
-        
         public DbSet<Partida> Partidas { get; set; }
         public DbSet<Resultado> Resultados { get; set; }
-        
+        public DbSet<Report> Reports { get; set; } // La tabla nueva
 
-        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             
+            // --- Configuración de Equipos (Ya estaba) ---
             modelBuilder.Entity<Team>()
                 .HasOne(t => t.Captain)
                 .WithMany(u => u.TeamsCaptained)
@@ -35,7 +33,7 @@ namespace EsportsApi.Data
                 .HasForeignKey(u => u.TeamId)
                 .OnDelete(DeleteBehavior.NoAction); 
             
-            
+            // --- Configuración de Partidas (Ya estaba) ---
             modelBuilder.Entity<Partida>()
                 .HasOne(p => p.TeamA)
                 .WithMany() 
@@ -48,12 +46,24 @@ namespace EsportsApi.Data
                 .HasForeignKey(p => p.TeamB_Id)
                 .OnDelete(DeleteBehavior.NoAction);
 
-          
             modelBuilder.Entity<Partida>()
                 .HasOne(p => p.Resultado)
                 .WithOne(r => r.Partida) 
                 .HasForeignKey<Resultado>(r => r.PartidaId);
-            
+
+            // --- ¡ESTA ES LA CORRECCIÓN PARA EL ERROR 1785! ---
+            modelBuilder.Entity<Report>()
+                .HasOne(r => r.Reporter)
+                .WithMany()
+                .HasForeignKey(r => r.ReporterId)
+                .OnDelete(DeleteBehavior.NoAction); // Evita el ciclo al borrar usuario
+
+            modelBuilder.Entity<Report>()
+                .HasOne(r => r.Tournament)
+                .WithMany()
+                .HasForeignKey(r => r.TournamentId)
+                .OnDelete(DeleteBehavior.NoAction); // Evita el ciclo al borrar torneo
+            // -------------------------------------------------
         }
     }
 }
